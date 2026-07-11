@@ -13,6 +13,8 @@ import SettingsHeader from "src/components/SettingsHeader";
 import { ThemePreview } from "src/components/ThemePreview";
 import { UpgradeDialog } from "src/components/UpgradeDialog";
 import { Badge } from "src/components/ui/badge";
+import { Button } from "src/components/ui/button";
+import { Input } from "src/components/ui/input";
 import { Label } from "src/components/ui/label";
 import {
   Select,
@@ -27,6 +29,8 @@ import { DarkMode, Themes, useTheme } from "src/components/ui/theme-provider";
 import {
   BITCOIN_DISPLAY_FORMAT_BIP177,
   BITCOIN_DISPLAY_FORMAT_SATS,
+  RELAY_PRESET_CUSTOM,
+  RELAY_PRESETS,
 } from "src/constants";
 import { useAlbyMe } from "src/hooks/useAlbyMe";
 import { useCurrencies } from "src/hooks/useCurrencies";
@@ -78,6 +82,95 @@ function Settings() {
       "Bitcoin display format updated",
       "Failed to update bitcoin display format"
     );
+  }
+
+  const currentRelayValue = React.useMemo(
+    () => info?.relays.map((r: { url: string }) => r.url).join(",") ?? "",
+    [info?.relays]
+  );
+
+  const matchedPreset = React.useMemo(
+    () => RELAY_PRESETS.find((p) => p.value === currentRelayValue),
+    [currentRelayValue]
+  );
+
+  const [relaySelection, setRelaySelection] = React.useState<string>(
+    matchedPreset ? matchedPreset.value : RELAY_PRESET_CUSTOM
+  );
+  const [customRelayUrl, setCustomRelayUrl] = React.useState<string>(
+    matchedPreset ? "" : currentRelayValue
+  );
+  const [isSavingCustomRelay, setIsSavingCustomRelay] = React.useState(false);
+
+  React.useEffect(() => {
+    setRelaySelection(matchedPreset ? matchedPreset.value : RELAY_PRESET_CUSTOM);
+    setCustomRelayUrl(matchedPreset ? "" : currentRelayValue);
+  }, [matchedPreset, currentRelayValue]);
+
+  async function saveRelayUrls(urls: string[]) {
+    try {
+      await request("/api/settings", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ relayUrls: urls }),
+      });
+      await reloadInfo();
+      toast("Nostr relay updated. Restart Alby Hub to apply.");
+    } catch (error) {
+      console.error(error);
+      handleRequestError("Failed to update relay", error);
+    }
+  }
+
+  async function onRelayPresetChange(value: string) {
+    setRelaySelection(value);
+    if (value === RELAY_PRESET_CUSTOM) {
+      return;
+    }
+    await saveRelayUrls(value.split(","));
+  }
+
+  async function onSaveCustomRelay() {
+    const trimmed = customRelayUrl.trim();
+    if (!trimmed) {
+      toast.error("Enter a wss:// URL");
+      return;
+    }
+    setIsSavingCustomRelay(true);
+    try {
+      await saveRelayUrls(
+        trimmed
+          .split(",")
+          .map((u: string) => u.trim())
+          .filter(Boolean)
+      );
+    } finally {
+      setIsSavingCustomRelay(false);
+    }
+  }
+
+  const customRelayList = customRelayUrl
+    .split(",")
+    .map((u: string) => u.trim())
+    .filter(Boolean);
+
+  const MAX_CUSTOM_RELAYS = 4;
+
+  function appendPresetToCustom(url: string) {
+    setCustomRelayUrl((prev: string) => {
+      const trimmedPrev = prev.trim();
+      const existing = trimmedPrev
+        ? trimmedPrev
+            .split(",")
+            .map((u: string) => u.trim())
+            .filter(Boolean)
+        : [];
+      if (existing.includes(url)) return trimmedPrev;
+      if (existing.length >= MAX_CUSTOM_RELAYS) return trimmedPrev;
+      return existing.length === 0 ? url : `${existing.join(",")},${url}`;
+    });
   }
 
   if (!info) {
@@ -263,6 +356,91 @@ function Settings() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+        </div>
+        <Separator />
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1 text-sm">
+            <h3 className="font-semibold">Nostr Relay</h3>
+            <p className="text-muted-foreground">
+              Relay used for Nostr Wallet Connect. A restart of Alby Hub is
+              required for changes to take effect.
+            </p>
+          </div>
+          <div className="space-y-4">
+            <div className="grid gap-1.5">
+              <Label htmlFor="relay">Relay</Label>
+              <Select
+                value={relaySelection}
+                onValueChange={onRelayPresetChange}
+              >
+                <SelectTrigger className="w-full md:w-80">
+                  <SelectValue placeholder="Select a relay" />
+                </SelectTrigger>
+                <SelectContent>
+                  {RELAY_PRESETS.map((preset) => (
+                    <SelectItem key={preset.value} value={preset.value}>
+                      {preset.label}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={RELAY_PRESET_CUSTOM}>Custom…</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {relaySelection === RELAY_PRESET_CUSTOM && (
+              <div className="grid gap-1.5">
+                <Label htmlFor="customRelayUrl">Custom relay URL</Label>
+                <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                  <Input
+                    id="customRelayUrl"
+                    placeholder="wss://your-relay.example"
+                    value={customRelayUrl}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setCustomRelayUrl(e.target.value)
+                    }
+                    className="w-full md:w-80"
+                  />
+                  <Button
+                    type="button"
+                    onClick={onSaveCustomRelay}
+                    disabled={isSavingCustomRelay || !customRelayUrl.trim()}
+                  >
+                    {isSavingCustomRelay ? "Saving…" : "Save"}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Multiple relays can be entered separated by commas (up to{" "}
+                  {MAX_CUSTOM_RELAYS}).
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    Quick add ({customRelayList.length}/{MAX_CUSTOM_RELAYS}):
+                  </span>
+                  {RELAY_PRESETS.filter((p) => !p.value.includes(",")).map(
+                    (preset) => {
+                      const alreadyAdded = customRelayList.includes(
+                        preset.value
+                      );
+                      const atLimit =
+                        customRelayList.length >= MAX_CUSTOM_RELAYS;
+                      return (
+                        <Button
+                          key={preset.value}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={alreadyAdded || atLimit}
+                          onClick={() => appendPresetToCustom(preset.value)}
+                        >
+                          {alreadyAdded ? "✓ " : "+ "}
+                          {preset.label}
+                        </Button>
+                      );
+                    }
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

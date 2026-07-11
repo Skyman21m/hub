@@ -1651,6 +1651,13 @@ func (api *api) UpdateSettings(updateSettingsRequest *UpdateSettingsRequest) err
 		}
 	}
 
+	if updateSettingsRequest.RelayUrls != nil {
+		err := api.cfg.SetRelayUrls(updateSettingsRequest.RelayUrls)
+		if err != nil {
+			return fmt.Errorf("failed to set relay urls: %w", err)
+		}
+	}
+
 	return nil
 }
 

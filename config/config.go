@@ -209,6 +209,41 @@ func (cfg *config) GetRelayUrls() []string {
 	return strings.Split(relayUrls, ",")
 }
 
+func (cfg *config) SetRelayUrls(urls []string) error {
+	if len(urls) == 0 {
+		return errors.New("at least one relay URL is required")
+	}
+
+	seen := make(map[string]struct{}, len(urls))
+	cleaned := make([]string, 0, len(urls))
+	for _, url := range urls {
+		trimmed := strings.TrimSpace(url)
+		if trimmed == "" {
+			continue
+		}
+		lower := strings.ToLower(trimmed)
+		if !strings.HasPrefix(lower, "wss://") && !strings.HasPrefix(lower, "ws://") {
+			return fmt.Errorf("invalid relay URL %q: must start with wss:// or ws://", trimmed)
+		}
+		if _, ok := seen[trimmed]; ok {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		cleaned = append(cleaned, trimmed)
+	}
+
+	if len(cleaned) == 0 {
+		return errors.New("at least one non-empty relay URL is required")
+	}
+
+	err := cfg.SetUpdate("Relay", strings.Join(cleaned, ","), "")
+	if err != nil {
+		logger.Logger.WithError(err).Error("Failed to update relay URLs")
+		return err
+	}
+	return nil
+}
+
 func (cfg *config) GetNetwork() string {
 	env := cfg.GetEnv()
 

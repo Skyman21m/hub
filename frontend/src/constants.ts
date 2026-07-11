@@ -29,3 +29,23 @@ export const DEFAULT_APP_BUDGET_RENEWAL = "monthly";
 
 export const BITCOIN_DISPLAY_FORMAT_BIP177 = "bip177";
 export const BITCOIN_DISPLAY_FORMAT_SATS = "sats";
+
+export const RELAY_PRESET_CUSTOM = "custom";
+
+export type RelayPreset = {
+  label: string;
+  value: string;
+};
+
+export const RELAY_PRESETS: RelayPreset[] = [
+  {
+    label: "Alby (default)",
+    value: "wss://relay.getalby.com,wss://relay2.getalby.com",
+  },
+  { label: "Alby Relay 1", value: "wss://relay.getalby.com" },
+  { label: "Alby Relay 2", value: "wss://relay2.getalby.com" },
+  { label: "Damus", value: "wss://relay.damus.io" },
+  { label: "nos.lol", value: "wss://nos.lol" },
+  { label: "nostr.band", value: "wss://relay.nostr.band" },
+  { label: "Primal", value: "wss://relay.primal.net" },
+];

@@ -339,9 +339,10 @@ type InfoResponse struct {
 }
 
 type UpdateSettingsRequest struct {
-	Currency             string `json:"currency"`
-	BitcoinDisplayFormat string `json:"bitcoinDisplayFormat"`
-	JitChannelsEnabled   *bool  `json:"jitChannelsEnabled"`
+	Currency             string   `json:"currency"`
+	BitcoinDisplayFormat string   `json:"bitcoinDisplayFormat"`
+	JitChannelsEnabled   *bool    `json:"jitChannelsEnabled"`
+	RelayUrls            []string `json:"relayUrls"`
 }
 
 type SetNodeAliasRequest struct {

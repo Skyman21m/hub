@@ -90,6 +90,7 @@ type Config interface {
 	LoadJWTSecret(encryptionKey string) error
 	GetJWTSecret() (string, error)
 	GetRelayUrls() []string
+	SetRelayUrls(urls []string) error
 	GetNetwork() string
 	GetMempoolUrl() string
 	GetEnv() *AppConfig
