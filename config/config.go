@@ -48,7 +48,9 @@ func (cfg *config) init(env *AppConfig) error {
 	cfg.Env = env
 
 	if cfg.Env.Relay != "" {
-		err := cfg.SetUpdate("Relay", cfg.Env.Relay, "")
+		// SetIgnore: seed the default relays on first launch only, so a
+		// relay chosen from the Settings UI survives restarts.
+		err := cfg.SetIgnore("Relay", cfg.Env.Relay, "")
 		if err != nil {
 			return err
 		}
