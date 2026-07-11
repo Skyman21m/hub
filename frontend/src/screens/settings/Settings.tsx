@@ -103,7 +103,9 @@ function Settings() {
   const [isSavingCustomRelay, setIsSavingCustomRelay] = React.useState(false);
 
   React.useEffect(() => {
-    setRelaySelection(matchedPreset ? matchedPreset.value : RELAY_PRESET_CUSTOM);
+    setRelaySelection(
+      matchedPreset ? matchedPreset.value : RELAY_PRESET_CUSTOM
+    );
     setCustomRelayUrl(matchedPreset ? "" : currentRelayValue);
   }, [matchedPreset, currentRelayValue]);
 
@@ -167,8 +169,12 @@ function Settings() {
             .map((u: string) => u.trim())
             .filter(Boolean)
         : [];
-      if (existing.includes(url)) return trimmedPrev;
-      if (existing.length >= MAX_CUSTOM_RELAYS) return trimmedPrev;
+      if (existing.includes(url)) {
+        return trimmedPrev;
+      }
+      if (existing.length >= MAX_CUSTOM_RELAYS) {
+        return trimmedPrev;
+      }
       return existing.length === 0 ? url : `${existing.join(",")},${url}`;
     });
   }
