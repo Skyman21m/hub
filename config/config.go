@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -29,6 +30,9 @@ type config struct {
 
 const (
 	unlockPasswordCheck = "THIS STRING SHOULD MATCH IF PASSWORD IS CORRECT"
+
+	userSelectedRelaysKey = "UserSelectedRelays"
+	maxRelayUrls          = 4
 )
 
 func NewConfig(env *AppConfig, db *gorm.DB) (*config, error) {
@@ -48,11 +52,15 @@ func (cfg *config) init(env *AppConfig) error {
 	cfg.Env = env
 
 	if cfg.Env.Relay != "" {
-		// SetIgnore: seed the default relays on first launch only, so a
-		// relay chosen from the Settings UI survives restarts.
-		err := cfg.SetIgnore("Relay", cfg.Env.Relay, "")
-		if err != nil {
-			return err
+		// Only apply the env/default relays when the user has not picked
+		// relays from the Settings UI, so their choice survives restarts
+		// while fresh installs still track upstream default changes.
+		userSelectedRelays, _ := cfg.Get(userSelectedRelaysKey, "")
+		if userSelectedRelays != "true" {
+			err := cfg.SetUpdate("Relay", cfg.Env.Relay, "")
+			if err != nil {
+				return err
+			}
 		}
 	}
 	if cfg.Env.LNBackendType != "" {
@@ -218,14 +226,26 @@ func (cfg *config) SetRelayUrls(urls []string) error {
 
 	seen := make(map[string]struct{}, len(urls))
 	cleaned := make([]string, 0, len(urls))
-	for _, url := range urls {
-		trimmed := strings.TrimSpace(url)
+	for _, u := range urls {
+		trimmed := strings.TrimSpace(u)
 		if trimmed == "" {
 			continue
 		}
-		lower := strings.ToLower(trimmed)
-		if !strings.HasPrefix(lower, "wss://") && !strings.HasPrefix(lower, "ws://") {
+		// the list is stored comma-joined, so a comma inside a URL would
+		// smuggle in extra unvalidated entries
+		if strings.ContainsAny(trimmed, ", ") {
+			return fmt.Errorf("invalid relay URL %q: must not contain commas or spaces", trimmed)
+		}
+		parsed, err := url.Parse(trimmed)
+		if err != nil {
+			return fmt.Errorf("invalid relay URL %q: %w", trimmed, err)
+		}
+		scheme := strings.ToLower(parsed.Scheme)
+		if scheme != "wss" && scheme != "ws" {
 			return fmt.Errorf("invalid relay URL %q: must start with wss:// or ws://", trimmed)
+		}
+		if parsed.Host == "" {
+			return fmt.Errorf("invalid relay URL %q: missing host", trimmed)
 		}
 		if _, ok := seen[trimmed]; ok {
 			continue
@@ -237,10 +257,18 @@ func (cfg *config) SetRelayUrls(urls []string) error {
 	if len(cleaned) == 0 {
 		return errors.New("at least one non-empty relay URL is required")
 	}
+	if len(cleaned) > maxRelayUrls {
+		return fmt.Errorf("too many relay URLs: maximum is %d", maxRelayUrls)
+	}
 
 	err := cfg.SetUpdate("Relay", strings.Join(cleaned, ","), "")
 	if err != nil {
 		logger.Logger.WithError(err).Error("Failed to update relay URLs")
+		return err
+	}
+	err = cfg.SetUpdate(userSelectedRelaysKey, "true", "")
+	if err != nil {
+		logger.Logger.WithError(err).Error("Failed to mark relays as user-selected")
 		return err
 	}
 	return nil

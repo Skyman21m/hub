@@ -912,6 +912,57 @@ func (_c *MockConfig_SetUpdate_Call) RunAndReturn(run func(key string, value str
 	return _c
 }
 
+// SetRelayUrls provides a mock function for the type MockConfig
+func (_mock *MockConfig) SetRelayUrls(urls []string) error {
+	ret := _mock.Called(urls)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetRelayUrls")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func([]string) error); ok {
+		r0 = returnFunc(urls)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockConfig_SetRelayUrls_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetRelayUrls'
+type MockConfig_SetRelayUrls_Call struct {
+	*mock.Call
+}
+
+// SetRelayUrls is a helper method to define mock.On call
+//   - urls []string
+func (_e *MockConfig_Expecter) SetRelayUrls(urls interface{}) *MockConfig_SetRelayUrls_Call {
+	return &MockConfig_SetRelayUrls_Call{Call: _e.mock.On("SetRelayUrls", urls)}
+}
+
+func (_c *MockConfig_SetRelayUrls_Call) Run(run func(urls []string)) *MockConfig_SetRelayUrls_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 []string
+		if args[0] != nil {
+			arg0 = args[0].([]string)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockConfig_SetRelayUrls_Call) Return(err error) *MockConfig_SetRelayUrls_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockConfig_SetRelayUrls_Call) RunAndReturn(run func(urls []string) error) *MockConfig_SetRelayUrls_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SetupCompleted provides a mock function for the type MockConfig
 func (_mock *MockConfig) SetupCompleted() (bool, error) {
 	ret := _mock.Called()

@@ -1529,6 +1529,8 @@ func (api *api) GetInfo(ctx context.Context) (*InfoResponse, error) {
 			Online: relayStatus.Online,
 		})
 	}
+	// saved relay configuration (info.Relays only reflects the running pool)
+	info.RelayUrls = api.cfg.GetRelayUrls()
 
 	info.MempoolUrl = api.cfg.GetMempoolUrl()
 	info.AlbyAccountConnected = api.albyOAuthSvc.IsConnected(ctx)

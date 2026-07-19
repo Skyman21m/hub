@@ -166,6 +166,7 @@ export interface InfoResponse {
   network?: Network;
   version: string;
   relays: { url: string; online: boolean }[];
+  relayUrls: string[];
   unlocked: boolean;
   enableAdvancedSetup: boolean;
   startupState: string;

@@ -63,10 +63,16 @@ func NewHttpService(svc service.Service, eventPublisher events.EventPublisher) *
 func (httpSvc *HttpService) RegisterSharedRoutes(e *echo.Echo) {
 	e.HideBanner = true
 
+	// pin connect-src to the configured relays; relay changes require a
+	// restart, at which point this policy is rebuilt
+	relayOrigins := strings.TrimSpace(strings.Join(httpSvc.cfg.GetRelayUrls(), " "))
+	if relayOrigins == "" {
+		relayOrigins = "wss:"
+	}
 	e.Use(middleware.SecureWithConfig(middleware.SecureConfig{
 		ContentTypeNosniff:    "nosniff",
 		XFrameOptions:         "DENY",
-		ContentSecurityPolicy: "default-src 'self'; img-src 'self' https://uploads.getalby-assets.com https://cdn.getalby-assets.com https://getalby.com; connect-src 'self' https://api.getalby.com https://getalby.com https://zapplanner.albylabs.com wss:; frame-src https://www.youtube-nocookie.com",
+		ContentSecurityPolicy: fmt.Sprintf("default-src 'self'; img-src 'self' https://uploads.getalby-assets.com https://cdn.getalby-assets.com https://getalby.com; connect-src 'self' https://api.getalby.com https://getalby.com https://zapplanner.albylabs.com %s; frame-src https://www.youtube-nocookie.com", relayOrigins),
 		ReferrerPolicy:        "no-referrer",
 	}))
 	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{

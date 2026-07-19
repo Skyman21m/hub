@@ -326,6 +326,7 @@ type InfoResponse struct {
 	Currency                    string              `json:"currency"`
 	BitcoinDisplayFormat        string              `json:"bitcoinDisplayFormat"`
 	Relays                      []InfoResponseRelay `json:"relays"`
+	RelayUrls                   []string            `json:"relayUrls"`
 	NodeAlias                   string              `json:"nodeAlias"`
 	MempoolUrl                  string              `json:"mempoolUrl"`
 	ChainDataSourceType         string              `json:"chainDataSourceType,omitempty"`

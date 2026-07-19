@@ -85,8 +85,8 @@ function Settings() {
   }
 
   const currentRelayValue = React.useMemo(
-    () => info?.relays.map((r: { url: string }) => r.url).join(",") ?? "",
-    [info?.relays]
+    () => info?.relayUrls?.join(",") ?? "",
+    [info?.relayUrls]
   );
 
   const matchedPreset = React.useMemo(
@@ -102,14 +102,23 @@ function Settings() {
   );
   const [isSavingCustomRelay, setIsSavingCustomRelay] = React.useState(false);
 
+  const MAX_CUSTOM_RELAYS = 4;
+
+  // only resync local state when the saved value actually changes, so a
+  // background info revalidation doesn't wipe in-progress typing
+  const lastSyncedRelayValue = React.useRef<string | null>(null);
   React.useEffect(() => {
+    if (lastSyncedRelayValue.current === currentRelayValue) {
+      return;
+    }
+    lastSyncedRelayValue.current = currentRelayValue;
     setRelaySelection(
       matchedPreset ? matchedPreset.value : RELAY_PRESET_CUSTOM
     );
     setCustomRelayUrl(matchedPreset ? "" : currentRelayValue);
   }, [matchedPreset, currentRelayValue]);
 
-  async function saveRelayUrls(urls: string[]) {
+  async function saveRelayUrls(urls: string[]): Promise<boolean> {
     try {
       await request("/api/settings", {
         method: "PATCH",
@@ -120,18 +129,24 @@ function Settings() {
       });
       await reloadInfo();
       toast("Nostr relay updated. Restart Alby Hub to apply.");
+      return true;
     } catch (error) {
       console.error(error);
       handleRequestError("Failed to update relay", error);
+      return false;
     }
   }
 
   async function onRelayPresetChange(value: string) {
+    const previousSelection = relaySelection;
     setRelaySelection(value);
     if (value === RELAY_PRESET_CUSTOM) {
       return;
     }
-    await saveRelayUrls(value.split(","));
+    const saved = await saveRelayUrls(value.split(","));
+    if (!saved) {
+      setRelaySelection(previousSelection);
+    }
   }
 
   async function onSaveCustomRelay() {
@@ -140,14 +155,17 @@ function Settings() {
       toast.error("Enter a wss:// URL");
       return;
     }
+    const urls = trimmed
+      .split(",")
+      .map((u: string) => u.trim())
+      .filter(Boolean);
+    if (urls.length > MAX_CUSTOM_RELAYS) {
+      toast.error(`Maximum ${MAX_CUSTOM_RELAYS} relays`);
+      return;
+    }
     setIsSavingCustomRelay(true);
     try {
-      await saveRelayUrls(
-        trimmed
-          .split(",")
-          .map((u: string) => u.trim())
-          .filter(Boolean)
-      );
+      await saveRelayUrls(urls);
     } finally {
       setIsSavingCustomRelay(false);
     }
@@ -157,8 +175,6 @@ function Settings() {
     .split(",")
     .map((u: string) => u.trim())
     .filter(Boolean);
-
-  const MAX_CUSTOM_RELAYS = 4;
 
   function appendPresetToCustom(url: string) {
     setCustomRelayUrl((prev: string) => {
